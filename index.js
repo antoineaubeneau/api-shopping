@@ -1,41 +1,27 @@
 const express = require("express");
 const { body, validationResult } = require('express-validator');
-
-
-
-// Initialize Express
 const app = express();
 app.use(express.json());
 
-// Panier
 let basket = {
     totalPrice: 0,
     products: []
 };
 
-// Fonction pour vérifier l'existence du produit
 async function checkProductExists(productId) {
     const response = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
     const products = await response.json();
-    const ProductsFind = products.find(product => product._id === productId);
-    console.log(ProductsFind);
-    return ProductsFind;
+    return products.find(product => product._id === productId);
 }
 
 async function addToBasket(productId, quantity) {
     const product = await checkProductExists(productId);
     if (product) {
         const productTotalPrice = product.price * quantity;
-        const stock = await fetch("https://api-stock.vercel.app/api/stock");
-        const stockproducts = await stock.json();
-        const ProductsStock = stockproducts.find(product => product.productId === productId);
-
-        if (ProductsStock) {
-            basket.totalPrice += productTotalPrice;
-            basket.products.push({ ...product, quantity });
-            console.log(`Produit ajouté au panier : ${productId}, quantité : ${quantity}`);
-            return true;
-        }
+        basket.totalPrice += productTotalPrice;
+        basket.products.push({ ...product, quantity });
+        console.log(`Produit ajouté au panier : ${productId}, quantité : ${quantity}`);
+        return true;
     }
     return false;
 }
@@ -81,6 +67,30 @@ app.get('/api/products/:productId', async (req, res) => {
         res.json(productDto);
     } else {
         res.status(404).send({ message: "Produit non trouvé." });
+    }
+});
+
+app.post('/api/basket/checkout', async (req, res) => {
+    if (basket.products.length === 0) {
+        return res.status(400).send({ message: "Impossible de faire un checkout avec un panier vide." });
+    }
+
+    try {
+        const orderResponse = await fetch('http://microservices.tp.rjqu8633.odns.fr/api/client-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(basket.products)
+        });
+
+        if (!orderResponse.ok) {
+            throw new Error(`Erreur lors de la création de la commande : ${orderResponse.statusText}`);
+        }
+
+        const orderCreated = await orderResponse.json();
+        basket = { totalPrice: 0, products: [] };
+        res.status(200).json(orderCreated);
+    } catch (error) {
+        res.status(500).send({ message: error.message });
     }
 });
 
