@@ -7,11 +7,11 @@ const app = express();
 app.use(express.json());
 
 // Catalogue de produits
-const productCatalogue = {
-    'product1': { id: 'product1', name: 'Produit 1', price: 10 },
-    'product2': { id: 'product2', name: 'Produit 2', price: 20 },
-    'product3': { id: 'product3', name: 'Produit 3', price: 30 },
-};
+
+//    { 'product1': { id: 'product1', name: 'Produit 1', price: 10 },
+//     'product2': { id: 'product2', name: 'Produit 2', price: 20 },
+//     'product3': { id: 'product3', name: 'Produit 3', price: 30 },
+// };
 
 // Panier
 let basket = {
@@ -20,14 +20,18 @@ let basket = {
 };
 
 // Fonction pour vérifier l'existence du produit
-function checkProductExists(productId) {
-    return productCatalogue.hasOwnProperty(productId);
+async function checkProductExists(productId) {
+    const productCatalogue = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
+    const productJSON = await productCatalogue.json();
+    return productJSON.find(x => x.productId === productId);
 }
 
 
-function addToBasket(productId, quantity) {
+async function addToBasket(productId, quantity) {
     if (checkProductExists(productId)) {
-        const product = productCatalogue[productId];
+        const productCatalogue = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
+        const productJSON = await productCatalogue.json();
+        const product = productJSON[productId];
         const productTotalPrice = product.price * quantity;
         basket.totalPrice += productTotalPrice;
         basket.products.push({ ...product, quantity });
@@ -63,11 +67,13 @@ app.get('/api/basket', (req, res) => {
     res.json(basket);
 });
 
-app.get('/api/products/:productId', (req, res) => {
+app.get('/api/products/:productId', async (req, res) => {
     const { productId } = req.params;
 
     if (checkProductExists(productId)) {
-        const product = productCatalogue[productId];
+        const productCatalogue = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
+        const productJSON = await productCatalogue.json();
+        const product = productJSON[productId];
         const productDto = {
             _id: product.id,
             ean: "Inconnu",
