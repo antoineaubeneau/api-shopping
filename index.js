@@ -6,25 +6,25 @@ const { body, validationResult } = require('express-validator');
 const app = express();
 app.use(express.json());
 
-// Simuler un catalogue de produits
+// Catalogue de produits
 const productCatalogue = {
     'product1': { id: 'product1', name: 'Produit 1', price: 10 },
     'product2': { id: 'product2', name: 'Produit 2', price: 20 },
     'product3': { id: 'product3', name: 'Produit 3', price: 30 },
 };
 
-// Simuler un panier
+// Panier
 let basket = {
     totalPrice: 0,
     products: []
 };
 
-// Créer une fonction pour vérifier l'existence du produit
+// Fonction pour vérifier l'existence du produit
 function checkProductExists(productId) {
     return productCatalogue.hasOwnProperty(productId);
 }
 
-// Ajouter la logique pour mettre à jour le panier
+
 function addToBasket(productId, quantity) {
     if (checkProductExists(productId)) {
         const product = productCatalogue[productId];
@@ -56,6 +56,27 @@ app.put('/api/basket', [
         res.status(204).send();
     } else {
         res.status(400).send({ message: "Le produit n'existe pas." });
+    }
+});
+
+app.get('/api/basket', (req, res) => {
+    res.json(basket);
+});
+
+app.get('/api/products/:productId', (req, res) => {
+    const { productId } = req.params;
+
+    if (checkProductExists(productId)) {
+        const product = productCatalogue[productId];
+        const productDto = {
+            _id: product.id,
+            ean: "Inconnu",
+            name: product.name,
+            price: product.price
+        };
+        res.json(productDto);
+    } else {
+        res.status(404).send({ message: "Produit non trouvé." });
     }
 });
 
