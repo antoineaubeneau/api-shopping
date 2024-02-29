@@ -1,17 +1,11 @@
-// Add Express
 const express = require("express");
 const { body, validationResult } = require('express-validator');
+
+
 
 // Initialize Express
 const app = express();
 app.use(express.json());
-
-// Catalogue de produits
-
-//    { 'product1': { id: 'product1', name: 'Produit 1', price: 10 },
-//     'product2': { id: 'product2', name: 'Produit 2', price: 20 },
-//     'product3': { id: 'product3', name: 'Produit 3', price: 30 },
-// };
 
 // Panier
 let basket = {
@@ -21,27 +15,31 @@ let basket = {
 
 // Fonction pour vérifier l'existence du produit
 async function checkProductExists(productId) {
-    const productCatalogue = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
-    const productJSON = await productCatalogue.json();
-    return productJSON.find(x => x.productId === productId);
+    const response = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
+    const products = await response.json();
+    const ProductsFind = products.find(product => product._id === productId);
+    console.log(ProductsFind);
+    return ProductsFind;
 }
 
-
 async function addToBasket(productId, quantity) {
-    if (checkProductExists(productId)) {
-        const productCatalogue = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
-        const productJSON = await productCatalogue.json();
-        const product = productJSON[productId];
+    const product = await checkProductExists(productId);
+    if (product) {
         const productTotalPrice = product.price * quantity;
-        basket.totalPrice += productTotalPrice;
-        basket.products.push({ ...product, quantity });
-        console.log(`Produit ajouté au panier : ${productId}, quantité : ${quantity}`);
-        return true;
+        const stock = await fetch("https://api-stock.vercel.app/api/stock");
+        const stockproducts = await stock.json();
+        const ProductsStock = stockproducts.find(product => product.productId === productId);
+
+        if (ProductsStock) {
+            basket.totalPrice += productTotalPrice;
+            basket.products.push({ ...product, quantity });
+            console.log(`Produit ajouté au panier : ${productId}, quantité : ${quantity}`);
+            return true;
+        }
     }
     return false;
 }
 
-// Create GET request
 app.get("/api/ping", (req, res) => {
     res.send("PONG");
 });
@@ -49,14 +47,14 @@ app.get("/api/ping", (req, res) => {
 app.put('/api/basket', [
     body('id').isString().notEmpty(),
     body('quantity').isInt({ min: 1 })
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
     const { id, quantity } = req.body;
-    if (addToBasket(id, quantity)) {
+    if (await addToBasket(id, quantity)) {
         res.status(204).send();
     } else {
         res.status(400).send({ message: "Le produit n'existe pas." });
@@ -69,15 +67,15 @@ app.get('/api/basket', (req, res) => {
 
 app.get('/api/products/:productId', async (req, res) => {
     const { productId } = req.params;
+    const product = await checkProductExists(productId);
 
-    if (checkProductExists(productId)) {
-        const productCatalogue = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
-        const productJSON = await productCatalogue.json();
-        const product = productJSON[productId];
+    if (product) {
         const productDto = {
-            _id: product.id,
-            ean: "Inconnu",
+            _id: product._id,
+            ean: product.ean || "Inconnu",
             name: product.name,
+            description: product.description,
+            categories: product.categories,
             price: product.price
         };
         res.json(productDto);
@@ -86,7 +84,6 @@ app.get('/api/products/:productId', async (req, res) => {
     }
 });
 
-// Initialize server
 app.listen(3000, () => {
     console.log("Running on port 3000.");
 });
