@@ -9,9 +9,13 @@ let basket = {
 };
 
 async function checkProductExists(productId) {
-    const response = await fetch("http://microservices.tp.rjqu8633.odns.fr/api/products");
-    const products = await response.json();
-    return products.find(product => product._id === productId);
+    try {
+        const responses = await fetch(`http://microservices.tp.rjqu8633.odns.fr/api/products/${productId}`);
+        return responses.body;
+    }
+    catch (e) {
+        return null;
+    }
 }
 
 async function addToBasket(productId, quantity) {
@@ -19,7 +23,7 @@ async function addToBasket(productId, quantity) {
     if (product) {
         const productTotalPrice = product.price * quantity;
         basket.totalPrice += productTotalPrice;
-        basket.products.push({ ...product, quantity });
+        basket.products.push({ ...product, quantity, id: productId });
         console.log(`Produit ajouté au panier : ${productId}, quantité : ${quantity}`);
         return true;
     }
@@ -76,23 +80,24 @@ app.post('/api/basket/checkout', async (req, res) => {
     }
 
     try {
-        const orderResponse = await fetch('http://microservices.tp.rjqu8633.odns.fr/api/client-orders', {
+        const orderResponse = await fetch('https://api-microservice.vercel.app/api/order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(basket.products)
         });
 
         if (!orderResponse.ok) {
-            throw new Error(`Erreur lors de la création de la commande : ${orderResponse.statusText}`);
+            return res.status(400).send({ message: `Erreur lors de la création de la commande : ${orderResponse.statusText}` });
         }
 
         const orderCreated = await orderResponse.json();
         basket = { totalPrice: 0, products: [] };
         res.status(200).json(orderCreated);
     } catch (error) {
-        res.status(500).send({ message: error.message });
+        res.status(500).send({ message: "Erreur interne du serveur." });
     }
 });
+
 
 app.listen(3000, () => {
     console.log("Running on port 3000.");
