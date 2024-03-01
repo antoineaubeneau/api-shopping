@@ -91,6 +91,24 @@ app.post('/api/basket/checkout', async (req, res) => {
         basket = { totalPrice: 0, products: [] };
         res.status(200).json(orderCreated);
     } catch (error) {
+        res.status(500).send({ message: "La commande ne peut pas etre passée car il n y a plus de stock." });
+    }
+});
+
+app.get('/api/products', async (req, res) => {
+    try {
+        const catalogueResponse = await fetch('http://microservices.tp.rjqu8633.odns.fr/api/products');
+        const catalogueProducts = await catalogueResponse.json();
+
+        const stockResponse = await fetch('https://api-stock.vercel.app/api/stock');
+        const stockData = await stockResponse.json();
+
+        const productsInStock = stockData.filter(product => product.quantity > 0).map(e => e.productId)
+        const productToDisplay = catalogueProducts.filter(product => productsInStock.includes(product._id))
+
+        res.status(200).json(productToDisplay);
+    } catch (error) {
+        console.error(error);
         res.status(500).send({ message: "Erreur interne du serveur." });
     }
 });
