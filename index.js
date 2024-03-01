@@ -11,7 +11,8 @@ let basket = {
 async function checkProductExists(productId) {
     try {
         const responses = await fetch(`http://microservices.tp.rjqu8633.odns.fr/api/products/${productId}`);
-        return responses.body;
+        const body = await responses.json()
+        return body;
     }
     catch (e) {
         return null;
@@ -85,10 +86,6 @@ app.post('/api/basket/checkout', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(basket.products)
         });
-
-        if (!orderResponse.ok) {
-            return res.status(400).send({ message: `Erreur lors de la création de la commande : ${orderResponse.statusText}` });
-        }
 
         const orderCreated = await orderResponse.json();
         basket = { totalPrice: 0, products: [] };
